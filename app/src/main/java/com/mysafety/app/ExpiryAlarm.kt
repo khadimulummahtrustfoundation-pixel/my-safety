@@ -11,14 +11,28 @@ object ExpiryAlarm {
     const val CHANNEL = "my_safety_expiry"
     private const val NOTIF_ID = 1001
 
+    private fun sp(c: Context) = c.applicationContext.getSharedPreferences("my_safety_alarm", Context.MODE_PRIVATE)
+
+    /** একই মেয়াদের জন্য একবারই অ্যালার্ম দেয় (অ্যালার্ম, রিবুট বা ব্যাকআপ যেটাই আগে আসুক) */
+    fun notifyOnce(c: Context) {
+        if (sp(c).getBoolean("notified", false)) return
+        sp(c).edit().putBoolean("notified", true).apply()
+        notifyNow(c)
+    }
+
     fun schedule(c: Context, remainingMs: Long) {
+        sp(c).edit().putBoolean("notified", false).apply()
         val am = c.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val fire = PendingIntent.getBroadcast(c, 1, Intent(c, ExpiryReceiver::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val show = PendingIntent.getActivity(c, 2, Intent(c, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         // setAlarmClock = সঠিক সময়ে বাজে, কোনো বাড়তি পারমিশন লাগে না
-        am.setAlarmClock(AlarmManager.AlarmClockInfo(System.currentTimeMillis() + remainingMs, show), fire)
+        try {
+            am.setAlarmClock(AlarmManager.AlarmClockInfo(System.currentTimeMillis() + remainingMs, show), fire)
+        } catch (_: Throwable) {
+            // পারমিশন সমস্যা হলেও GuardService-এর ব্যাকআপ চেক মেয়াদ শেষে অ্যালার্ম দেবে
+        }
     }
 
     fun cancel(c: Context) {
@@ -47,7 +61,7 @@ object ExpiryAlarm {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val n = Notification.Builder(c, CHANNEL)
             .setSmallIcon(R.drawable.ic_notif)
-            .setContentTitle("🎉 লক শেষ হয়েছে!")
+            .setContentTitle("লক শেষ হয়েছে!")
             .setContentText("৩০ দিন সফলভাবে পূর্ণ হয়েছে। অ্যাপ খুলে মুক্ত করুন।")
             .setStyle(Notification.BigTextStyle().bigText("৩০ দিন সফলভাবে পূর্ণ হয়েছে। অ্যাপ খুলে চাইলে মুক্ত করুন, অথবা আবার নতুন করে লক করুন।"))
             .setCategory(Notification.CATEGORY_ALARM)

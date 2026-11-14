@@ -1,6 +1,8 @@
 package com.mysafety.app
 
 import android.accessibilityservice.AccessibilityService
+import android.os.Handler
+import android.os.Looper
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -21,6 +23,20 @@ import android.widget.TextView
 class GuardService : AccessibilityService() {
 
     private var overlay: View? = null
+    private val handler = Handler(Looper.getMainLooper())
+
+    // ব্যাকআপ: অ্যালার্ম কোনো কারণে না বাজলেও মেয়াদ শেষে এখান থেকে নোটিফিকেশন যাবে
+    private val watchdog = object : Runnable {
+        override fun run() {
+            if (LockStore.isExpired(this@GuardService)) ExpiryAlarm.notifyOnce(this@GuardService)
+            handler.postDelayed(this, 30_000)
+        }
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        handler.removeCallbacks(watchdog); handler.post(watchdog)
+    }
 
     private val keywords = listOf(
         "private dns", "dns", "ডিএনএস", "প্রাইভেট ডিএনএস",
@@ -68,7 +84,8 @@ class GuardService : AccessibilityService() {
             if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
             setPadding(0, (8 * dp).toInt(), 0, (8 * dp).toInt())
         }
-        box.addView(tv("🛡️", 56f, false))
+        box.addView(android.widget.ImageView(this).apply { setImageResource(R.drawable.ic_logo_inverse) },
+            LinearLayout.LayoutParams((84 * dp).toInt(), (84 * dp).toInt()))
         box.addView(tv("My Safety", 26f, true))
         box.addView(tv("লক চালু আছে।\nএই সেটিং এখন খোলা যাবে না।", 17f, false))
 
@@ -102,5 +119,5 @@ class GuardService : AccessibilityService() {
     }
 
     override fun onInterrupt() {}
-    override fun onDestroy() { hide(); super.onDestroy() }
+    override fun onDestroy() { handler.removeCallbacks(watchdog); hide(); super.onDestroy() }
 }

@@ -11,7 +11,7 @@ class BootReceiver : BroadcastReceiver() {
                 Policy.applyLock(context)
                 ExpiryAlarm.schedule(context, LockStore.remainingMs(context)) // রিবুটের পর অ্যালার্ম আবার সেট
             }
-            LockStore.isExpired(context) -> ExpiryAlarm.notifyNow(context) // বন্ধ থাকা অবস্থায় মেয়াদ গেলে
+            LockStore.isExpired(context) -> ExpiryAlarm.notifyOnce(context) // বন্ধ থাকা অবস্থায় মেয়াদ গেলে
         }
     }
 }

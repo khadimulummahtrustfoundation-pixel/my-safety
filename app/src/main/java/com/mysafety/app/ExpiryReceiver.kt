@@ -6,6 +6,6 @@ import android.content.Intent
 
 class ExpiryReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        ExpiryAlarm.notifyNow(context)
+        ExpiryAlarm.notifyOnce(context)
     }
 }
