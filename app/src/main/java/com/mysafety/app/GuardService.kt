@@ -17,7 +17,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /**
- * লক চালু থাকলে Settings-এ DNS / My Safety / Device admin ইত্যাদি পেজ খুললেই
+ * লক চালু থাকলে Settings-এ DNS / My Safety (App list, Search, App info) / Device admin ইত্যাদি পেজ খুললেই
  * ফুল-স্ক্রিন পপআপ দেখায়। একমাত্র বাটন চাপলে হোম স্ক্রিনে পাঠিয়ে দেয়।
  */
 class GuardService : AccessibilityService() {
@@ -38,9 +38,14 @@ class GuardService : AccessibilityService() {
         handler.removeCallbacks(watchdog); handler.post(watchdog)
     }
 
+    // এই অ্যাপের নাম (লেবেল)। App list / search result / App info পেজে এই নামই দেখায়।
+    private val ownLabels by lazy {
+        listOf("my safety", "mysafety", applicationInfo.loadLabel(packageManager).toString().lowercase())
+            .distinct()
+    }
+
     private val keywords = listOf(
         "private dns", "dns", "ডিএনএস", "প্রাইভেট ডিএনএস",
-        "my safety",
         "device admin", "ডিভাইস অ্যাডমিন", "device administrator"
     )
 
@@ -49,21 +54,74 @@ class GuardService : AccessibilityService() {
         pkg.contains("permissioncontroller") || pkg.contains("securitycenter") ||
         pkg.contains("deviceadmin") || pkg.contains("devicecare")
 
+    private fun hasOwnLabel(text: String) = ownLabels.any { text.contains(it) }
+
+    private val scan = Runnable { scanScreen() }
+
+    private fun scheduleScan(vararg delays: Long) {
+        handler.removeCallbacks(scan)
+        delays.forEach { handler.postDelayed(scan, it) }
+    }
+
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
         if (e == null || overlay != null) return
         if (!LockStore.isLocked(this)) return
         val pkg = e.packageName?.toString() ?: return
         if (!isWatched(pkg)) return
-        val root = rootInActiveWindow ?: return
+
+        when (e.eventType) {
+            // App list / search result-এ "My Safety" লেখা আইটেমে ট্যাপ করলেই সাথে সাথে বাধা
+            // (App info পেজ খোলার আগেই)।
+            AccessibilityEvent.TYPE_VIEW_CLICKED -> {
+                if (clickedOwnApp(e.source)) { showBlock(); return }
+                scheduleScan(150)
+            }
+            // নতুন পেজ খুললে কন্টেন্ট লোড হতে সময় লাগে, তাই কয়েকবার স্ক্যান করা হয়।
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> scheduleScan(0, 150, 400, 900)
+            else -> scheduleScan(100)
+        }
+    }
+
+    /** ক্লিক করা আইটেম (বা তার সন্তান/ঠিক উপরের অভিভাবক) এর লেখায় অ্যাপের নাম আছে কিনা। */
+    private fun clickedOwnApp(src: AccessibilityNodeInfo?): Boolean {
+        if (src == null) return false
         val sb = StringBuilder()
-        collect(root, sb, 0)
-        val text = sb.toString().lowercase()
-        if (keywords.any { text.contains(it) }) showBlock()
+        collect(src, sb, 0)
+        if (hasOwnLabel(sb.toString().lowercase())) return true
+        // ক্লিক হয়েছে শুধু আইকন/ছোট ভিউতে হলে, ছোট অভিভাবক সারিটা (লিস্টের রো) দেখি
+        var p = src.parent
+        var up = 0
+        while (p != null && up < 3) {
+            if (p.childCount in 1..8) {
+                val t = StringBuilder(); collect(p, t, 0)
+                if (hasOwnLabel(t.toString().lowercase())) return true
+            }
+            p = p.parent; up++
+        }
+        return false
+    }
+
+    private fun scanScreen() {
+        if (overlay != null || !LockStore.isLocked(this)) return
+        val roots = ArrayList<AccessibilityNodeInfo>()
+        rootInActiveWindow?.let { roots.add(it) }
+        try {
+            windows?.forEach { w -> w.root?.let { r -> roots.add(r) } }
+        } catch (_: Throwable) { }
+        for (root in roots) {
+            val pkg = root.packageName?.toString() ?: continue
+            if (!isWatched(pkg)) continue
+            val sb = StringBuilder()
+            collect(root, sb, 0)
+            val text = sb.toString().lowercase()
+            if (keywords.any { text.contains(it) } || hasOwnLabel(text)) { showBlock(); return }
+        }
     }
 
     private fun collect(n: AccessibilityNodeInfo?, sb: StringBuilder, depth: Int) {
         if (n == null || depth > 25) return
         n.text?.let { sb.append(it).append('|') }
+        n.hintText?.let { sb.append(it).append('|') }
         n.contentDescription?.let { sb.append(it).append('|') }
         for (i in 0 until n.childCount) collect(n.getChild(i), sb, depth + 1)
     }
@@ -119,5 +177,5 @@ class GuardService : AccessibilityService() {
     }
 
     override fun onInterrupt() {}
-    override fun onDestroy() { handler.removeCallbacks(watchdog); hide(); super.onDestroy() }
+    override fun onDestroy() { handler.removeCallbacks(watchdog); handler.removeCallbacks(scan); hide(); super.onDestroy() }
 }
