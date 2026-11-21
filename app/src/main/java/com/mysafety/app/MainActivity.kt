@@ -340,7 +340,7 @@ class MainActivity : Activity() {
                     setColor(white); cornerRadius = dp(10).toFloat(); setStroke(dp(1), green)
                 }
             }
-            row.addView(box, LinearLayout.LayoutParams(dp(42), dp(52)).apply { if (i > 0) marginStart = dp(7) })
+            row.addView(box, LinearLayout.LayoutParams(0, dp(52), 1f).apply { if (i > 0) marginStart = dp(8) })
             boxes += box
         }
 
@@ -402,7 +402,7 @@ class MainActivity : Activity() {
         typeText(heading, "Please confirm your verified user")
 
         val otpRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        root.addView(otpRow, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(28) })
+        root.addView(otpRow, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(28) })
         val boxes = otpBoxes(otpRow)
 
         root.addView(button("Verify Access", R.drawable.ic_verified, green, matchWidth = false) {
@@ -589,8 +589,6 @@ class MainActivity : Activity() {
             intArrayOf(dark, green))
         root.gravity = Gravity.CENTER; root.setPadding(dp(24), dp(28), dp(24), dp(28))
 
-        // হিরো: ব্রাউজার-সুরক্ষা পালস অ্যানিমেশন
-        root.addView(ShieldPulseView(this), LinearLayout.LayoutParams(dp(148), dp(148)).apply { bottomMargin = dp(10) })
         root.addView(tv("ব্রাউজার সুরক্ষা সক্রিয় আছে", 21f, white, true, true))
         root.addView(tv("My Safety আপনার ডিভাইস ও ব্রাউজার সুরক্ষিত রাখছে", 13.5f, Color.parseColor("#CCFFFFFF"), false, true))
 
@@ -615,14 +613,15 @@ class MainActivity : Activity() {
             addView(chip(admin, "Admin")); addView(chip(a11y, "গার্ড"))
         }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(16) })
 
-        // অ্যাক্সেস ভেরিফাই কার্ড: OTP পেইজের মতো ৬টি আলাদা বক্স + Verify Access + Telegram
+        // Only For Emergency unlock কার্ড: টাইটেল + ৬টি বক্স + Unlock + Telegram লিংক
         val u = card()
         u.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20); bottomMargin = dp(10) }
-        u.addView(row(R.drawable.ic_lock_open, "অ্যাক্সেস ভেরিফাই করুন", "এই মুহূর্তের জন্য নির্ধারিত কোড দিন", View(this)))
+        u.setPadding(dp(16), dp(20), dp(16), dp(18))
+        u.addView(tv("Only For Emergency unlock", 22f, green, true, true))
         val otpRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        u.addView(otpRow, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10); bottomMargin = dp(4) })
+        u.addView(otpRow, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14); bottomMargin = dp(4) })
         val boxes = otpBoxes(otpRow)
-        u.addView(button("Verify Access", R.drawable.ic_verified, green) {
+        u.addView(button("Unlock", R.drawable.ic_lock_open, green, matchWidth = false) {
             val code = boxes.joinToString("") { it.text.toString() }
             if (code.length != 6) {
                 Toast.makeText(this, "৬ সংখ্যার কোড দিন", Toast.LENGTH_SHORT).show()
@@ -644,8 +643,10 @@ class MainActivity : Activity() {
                     Toast.makeText(this, "অনেকবার ভুল হয়েছে। ${bn(m.toString())} মিনিট পরে চেষ্টা করুন।", Toast.LENGTH_LONG).show()
                 }
             }
+        }.also { (it.layoutParams as LinearLayout.LayoutParams).gravity = Gravity.CENTER_HORIZONTAL })
+        u.addView(tv("Contact Admin on Telegram For OTP", 14f, gray, false, true).apply {
+            setPadding(0, dp(14), 0, dp(2))
         })
-        u.addView(button("টেলিগ্রামে যোগাযোগ করুন", R.drawable.ic_telegram, green) { openTelegram() })
         root.addView(u)
         updateCountdown()
         root.addView(tv("কোড ছাড়া আনইন্সটল ও DNS সেটিংস খোলা যাবে না।", 12f,
