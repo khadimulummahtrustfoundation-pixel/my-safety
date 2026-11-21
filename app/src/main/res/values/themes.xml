@@ -1,7 +1,0 @@
-<resources>
-    <style name="Theme.MySafety" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#0B3D20</item>
-        <item name="android:navigationBarColor">#F4FAF6</item>
-        <item name="android:windowBackground">#F4FAF6</item>
-    </style>
-</resources>
