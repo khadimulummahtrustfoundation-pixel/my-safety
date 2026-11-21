@@ -557,8 +557,7 @@ class MainActivity : Activity() {
             pill(if (ready) "প্রস্তুত" else "অপ্রস্তুত", ready)))
         lock.addView(LinearLayout(this).apply {
             gravity = Gravity.CENTER
-            addView(ShieldPulseView(this@MainActivity, lightBg = true, iconRes = R.drawable.ic_lock),
-                LinearLayout.LayoutParams(dp(104), dp(104)))
+            addView(LockKeyAnimView(this@MainActivity), LinearLayout.LayoutParams(dp(104), dp(104)))
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4); bottomMargin = dp(8) })
         lock.addView(divider(), LinearLayout.LayoutParams(-1, dp(1)).apply { bottomMargin = dp(14) })
         lock.addView(stepper(listOf(
