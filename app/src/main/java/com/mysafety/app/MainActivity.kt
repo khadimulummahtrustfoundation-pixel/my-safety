@@ -194,8 +194,8 @@ class MainActivity : Activity() {
                         background = GradientDrawable().apply {
                             shape = GradientDrawable.OVAL; setColor(green); setStroke(dp(2), white)
                         }
-                    }, FrameLayout.LayoutParams(dp(11), dp(11), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(3) })
-                }, LinearLayout.LayoutParams(dp(20), -1))
+                    }, FrameLayout.LayoutParams(dp(17), dp(17), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(2) })
+                }, LinearLayout.LayoutParams(dp(26), -1))
                 addView(TextView(context).apply {
                     this.text = text; textSize = 13f; setTextColor(gray); setLineSpacing(0f, 1.2f)
                     typeface = fontFor(false) ?: typeface
@@ -500,12 +500,15 @@ class MainActivity : Activity() {
         })
         dnsQuick.addView(divider(), LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(10); bottomMargin = dp(12) })
         dnsQuick.addView(stepper(listOf(
+            "প্রথমে DNS Address টি কপি করুন (উপরের কপি বাটনে চাপ দিন)",
             "ফোনের Settings খুলুন",
             "Network & internet এ যান (Samsung: Connections → More connection settings, Xiaomi: Connection & sharing)। সহজ উপায়: সার্চে \"Private DNS\" লিখুন",
             "Private DNS চাপুন",
             "\"Private DNS provider hostname\" বেছে নিন",
             "বক্সে কপি করা অ্যাড্রেসটি পেস্ট করুন",
-            "Save চাপুন — \"Connected\" দেখালে চালু হয়েছে"
+            "Save চাপুন — \"Connected\" দেখালে চালু হয়েছে",
+            "এরপর Accessibility গার্ড চালু করুন: Settings → Accessibility (বা Installed apps) → My Safety খুঁজে বের করে চালু করুন। Android 13+ এ অপশন ধূসর থাকলে: অ্যাপ ইনফো → ⋮ → Allow restricted settings চেপে আবার চেষ্টা করুন",
+            "সব সেট সম্পন্ন হলে এখন নিচের \"প্রয়োজনীয় পারমিশন\" ধাপে যান"
         )))
         dnsQuick.addView(TextView(this).apply {
             text = "⚠ লক শুরু করার আগেই এটি সেট করুন। লক চালু থাকলে DNS সেটিংস খোলা যাবে না।"
@@ -613,23 +616,15 @@ class MainActivity : Activity() {
             addView(chip(admin, "Admin")); addView(chip(a11y, "গার্ড"))
         }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(16) })
 
-        // অ্যাক্সেস ভেরিফাই কার্ড: টেক্সটবক্স + Verify Access + Telegram
+        // অ্যাক্সেস ভেরিফাই কার্ড: OTP পেইজের মতো ৬টি আলাদা বক্স + Verify Access + Telegram
         val u = card()
         u.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20); bottomMargin = dp(10) }
         u.addView(row(R.drawable.ic_lock_open, "অ্যাক্সেস ভেরিফাই করুন", "এই মুহূর্তের জন্য নির্ধারিত কোড দিন", View(this)))
-        val input = EditText(this).apply {
-            hint = "৬ সংখ্যার কোড"; textSize = 22f; gravity = Gravity.CENTER
-            inputType = InputType.TYPE_CLASS_NUMBER
-            filters = arrayOf(InputFilter.LengthFilter(6))
-            setTextColor(dark); setHintTextColor(Color.parseColor("#9AA8A0")); letterSpacing = 0.15f
-            background = GradientDrawable().apply {
-                setColor(pageBg); cornerRadius = dp(12).toFloat(); setStroke(dp(1), Color.parseColor("#E2EEE6"))
-            }
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-        }
-        u.addView(input, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        val otpRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        u.addView(otpRow, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10); bottomMargin = dp(4) })
+        val boxes = otpBoxes(otpRow)
         u.addView(button("Verify Access", R.drawable.ic_verified, green) {
-            val code = input.text.toString().trim()
+            val code = boxes.joinToString("") { it.text.toString() }
             if (code.length != 6) {
                 Toast.makeText(this, "৬ সংখ্যার কোড দিন", Toast.LENGTH_SHORT).show()
                 return@button
@@ -639,8 +634,10 @@ class MainActivity : Activity() {
                     ExpiryAlarm.cancel(this); LockStore.clear(this); setGatePassed(true)
                     Toast.makeText(this, "আনলক হয়েছে", Toast.LENGTH_LONG).show(); build()
                 }
-                UnlockCodes.Result.WRONG ->
+                UnlockCodes.Result.WRONG -> {
                     Toast.makeText(this, "ভুল কোড। আর ${bn(UnlockCodes.failsLeft(this).toString())} বার চেষ্টা করা যাবে।", Toast.LENGTH_LONG).show()
+                    boxes.forEach { it.text?.clear() }; boxes.first().requestFocus()
+                }
                 UnlockCodes.Result.CLOCK_CHANGED ->
                     Toast.makeText(this, "ফোনের ঘড়ি বদলানো শনাক্ত হয়েছে। সময় Automatic করে আবার চেষ্টা করুন।", Toast.LENGTH_LONG).show()
                 UnlockCodes.Result.COOLDOWN -> {
